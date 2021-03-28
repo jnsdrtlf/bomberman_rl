@@ -11,13 +11,10 @@ from .callbacks import (  # noqa
     save_model,
     FEATURE_SIZE,
     get_blast_coords,
-    ACTIONS
+    ACTIONS,
 )
 
-# This is only an example!
-Transition = namedtuple(
-    'Transition', ('state', 'action', 'next_state', 'reward')
-)
+Transition = namedtuple("Transition", ("state", "action", "next_state", "reward"))
 
 TRANSITION_HISTORY_SIZE = 20
 
@@ -61,8 +58,13 @@ def setup_training(self):
     self.transitions = deque(maxlen=TRANSITION_HISTORY_SIZE)
 
 
-def game_events_occurred(self, old_game_state: dict, self_action: str,
-                         new_game_state: dict, events: List[str]):
+def game_events_occurred(
+    self,
+    old_game_state: dict,
+    self_action: str,
+    new_game_state: dict,
+    events: List[str],
+):
     """
     Called once per step to allow intermediate rewards based on game events.
 
@@ -80,9 +82,9 @@ def game_events_occurred(self, old_game_state: dict, self_action: str,
     :param events: The events that occurred when going from  `old_game_state` to `new_game_state`
     """
     self.logger.debug(
-        f'Encountered game event(s) {", ".join(map(repr, events))} in step {new_game_state["step"]}')
-    self.logger.debug(
-        f'Tried to perform {self_action}')
+        f'Encountered game event(s) {", ".join(map(repr, events))} in step {new_game_state["step"]}'
+    )
+    self.logger.debug(f"Tried to perform {self_action}")
 
     # Idea: Add your own events to hand out rewards
     old_features = state_to_features(self, old_game_state)
@@ -139,9 +141,8 @@ def train_batch(self, batch: deque):
                     next_value = np.max(self.model.predict(new_features))
                 else:
                     next_value = 0
-            q_value_updated = (
-                    (1 - self.alpha) * old_value
-                    + self.alpha * (reward + self.gamma * next_value)
+            q_value_updated = (1 - self.alpha) * old_value + self.alpha * (
+                reward + self.gamma * next_value
             )
             action_indices[i] = action_index
             y[i] = np.array([q_value_updated])
@@ -167,14 +168,15 @@ def reward_coin_distance(old_game_state, new_game_state, events):
     if persistent_coins.size == 0:
         return
     else:
-        persistent_coins, = persistent_coins
+        (persistent_coins,) = persistent_coins
     # Calculate old distances to all persistent coins
     old_distances = np.sqrt(np.sum((persistent_coins - old_pos) ** 2, axis=-1))
     # Find the index of the previous closest coin
     closest_coin_index = np.argmin(old_distances)
     # Get the distance to this previously closest coin now
     new_distance = np.sqrt(
-        np.sum(((persistent_coins[closest_coin_index] - new_pos) ** 2)))
+        np.sum(((persistent_coins[closest_coin_index] - new_pos) ** 2))
+    )
     # Also get the old distance.
     # Should be the minimum of `old_distances`.
     old_distance = old_distances[closest_coin_index]
@@ -237,10 +239,16 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     :param self: The same object that is passed to all of your callbacks.
     """
     self.logger.debug(
-        f'Encountered event(s) {", ".join(map(repr, events))} in final step')
+        f'Encountered event(s) {", ".join(map(repr, events))} in final step'
+    )
     self.transitions.append(
-        Transition(state_to_features(self, last_game_state), last_action, None,
-                   reward_from_events(self, events)))
+        Transition(
+            state_to_features(self, last_game_state),
+            last_action,
+            None,
+            reward_from_events(self, events),
+        )
+    )
 
     train_batch(self, self.transitions)
 
@@ -254,27 +262,43 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     reward_std = np.std(self.rewards)
     reward_sum = np.sum(self.rewards)
     if self.past_scores.size == 0:
-        self.past_scores = np.array([
-            [mean_reward, median_reward, reward_std, reward_sum]
-        ])
+        self.past_scores = np.array(
+            [[mean_reward, median_reward, reward_std, reward_sum]]
+        )
     else:
         self.past_scores = np.append(
             self.past_scores,
             np.array([[mean_reward, median_reward, reward_std, reward_sum]]),
-            axis=0
+            axis=0,
         )
     np.save(self.score_file, self.past_scores)
     self.rewards = []
 
     if self.past_crates_coins.size == 0:
         self.past_crates_coins = np.array(
-            [[self.num_crates_destroyed, self.num_coins_collected, self.num_steps_survived, self.killed_enemies]])
+            [
+                [
+                    self.num_crates_destroyed,
+                    self.num_coins_collected,
+                    self.num_steps_survived,
+                    self.killed_enemies,
+                ]
+            ]
+        )
     else:
         self.past_crates_coins = np.append(
             self.past_crates_coins,
             np.array(
-                [[self.num_crates_destroyed, self.num_coins_collected, self.num_steps_survived, self.killed_enemies]]),
-            axis=0
+                [
+                    [
+                        self.num_crates_destroyed,
+                        self.num_coins_collected,
+                        self.num_steps_survived,
+                        self.killed_enemies,
+                    ]
+                ]
+            ),
+            axis=0,
         )
     np.save(self.crates_coins_file, self.past_crates_coins)
     self.num_crates_destroyed = 0
@@ -312,7 +336,7 @@ def reward_from_events(self, events: List[str]) -> int:
         CLOSER_TO_COIN: 40,
         IN_BLAST_RADIUS: -7,
         # e.BOMB_DROPPED: -1,
-        FURTHER_FROM_COIN: -30
+        FURTHER_FROM_COIN: -30,
     }
     reward_sum = 0
     for event in events:

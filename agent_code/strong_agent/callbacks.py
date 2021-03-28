@@ -9,25 +9,27 @@ import settings
 from items import Bomb
 from .util import view_port_state  # noqa
 
-ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
+ACTIONS = ["UP", "RIGHT", "DOWN", "LEFT", "WAIT", "BOMB"]
+
+# Hyperparameters
 EPSILON_MIN = 0.1
 EPSILON_MAX = 0.5
-EPSILON_DECAY = 1e-3  # set to 0 to always use EPSILON_MIN
-ALPHA = 0.2
-GAMMA = 0.3
-PCA_COMP = 7 * 7 + 20
+EPSILON_DECAY = 1e-3
+ALPHA = 0.2  # Q-learning Learning rate
+GAMMA = 0.3  # Q-learning Discount factor
+# Probabilities for epsilon greedy
 MAX_BOMB_PROB = 0.4
 WAIT_PROB = 0.1
 
+# PCA_COMP = 7 * 7 + 20  # Only used for PCA
 ADDITIONAL_FEATURES = 17
-
 FEATURE_SIZE = 7 * 7 * 7 + ADDITIONAL_FEATURES
 
 escape_combinations = [
     [[1, 0], [1, 1]],
     [[1, 0], [2, 0], [2, 1]],
     [[1, 0], [2, 0], [3, 0], [3, 1]],
-    [[1, 0], [2, 0], [3, 0], [4, 0]]
+    [[1, 0], [2, 0], [3, 0], [4, 0]],
 ]
 
 explosion_escape_combinations = [
@@ -37,7 +39,7 @@ explosion_escape_combinations = [
     [[1, 0], [2, 0], [2, 1]],
     [[1, 0], [2, 0], [3, 0]],
     [[1, 0], [2, 0], [3, 0], [3, 1]],
-    [[1, 0], [2, 0], [3, 0], [4, 0]]
+    [[1, 0], [2, 0], [3, 0], [4, 0]],
 ]
 
 
@@ -46,9 +48,7 @@ class MultiMultiMulti:
         self._models = []
         self._is_model_fit = np.full((len(ACTIONS),), False, dtype=bool)
         for _ in ACTIONS:
-            self._models.append(
-                regressor_class(*args, **kwargs)
-            )
+            self._models.append(regressor_class(*args, **kwargs))
 
     def fit(self, x, y):
         n_samples, action_size = y.shape
@@ -101,11 +101,11 @@ def setup(self):
     self.alpha = ALPHA  # Learning rate
     self.gamma = GAMMA  # Discount factor
     self.filename = "multimulti.pt"
-    self.pca_filename = "pca_model.pt"
     self.waited_for = 0
 
     self.last_action_random = False
 
+    # self.pca_filename = "pca_model.pt"
     # if os.path.isfile(self.pca_filename):
     #     self.pca = load_model(self.pca_filename)
     # else:
@@ -126,7 +126,9 @@ def setup(self):
         # hidden_layers = (110, 40)
         self.model = MultiMultiMulti(
             MLPRegressor,
-            hidden_layer_sizes=hidden_layers, max_iter=400, warm_start=True
+            hidden_layer_sizes=hidden_layers,
+            max_iter=400,
+            warm_start=True,
         )
     else:
         error_message = f"Unable to find '{self.filename}'. Is the model trained yet?"
@@ -169,12 +171,12 @@ def act(self, game_state: dict) -> str:
     self.logger.debug("Querying model for action.")
     features = state_to_features(self, game_state)
     if self.model.is_model_fit:
-        prediction, = self.model.predict(features)  # Unpack prediction array
+        (prediction,) = self.model.predict(features)  # Unpack prediction array
         action_index = np.argmax(prediction)
         return ACTIONS[int(action_index)]
     else:
         # Very first actions
-        return np.random.choice(ACTIONS, p=[.225, .225, .225, .225, .0, .1])
+        return np.random.choice(ACTIONS, p=[0.225, 0.225, 0.225, 0.225, 0.0, 0.1])
 
 
 def state_to_features(self, game_state: dict) -> np.array:
@@ -223,25 +225,50 @@ def state_to_features(self, game_state: dict) -> np.array:
             continue
 
         for route in explosion_escape_combinations:
-            escape_array = check_all_paths_for_route(np.array(route), field, player_x, player_y, bomb_pos,
-                                                     check_blast=True, blast_coord=blast_coord)
+            escape_array = check_all_paths_for_route(
+                np.array(route),
+                field,
+                player_x,
+                player_y,
+                bomb_pos,
+                check_blast=True,
+                blast_coord=blast_coord,
+            )
 
             if np.any(escape_array):
-                escape_int, = np.where(escape_array)
+                (escape_int,) = np.where(escape_array)
                 escape_path = get_escape_from_path_array(escape_int[0], route)
                 break
 
     can_escape = False
 
     for route in escape_combinations:
-        if check_all_paths_for_route(np.array(route), field, player_x, player_y, bomb_pos):
+        if check_all_paths_for_route(
+            np.array(route), field, player_x, player_y, bomb_pos
+        ):
             can_escape = True
             break
 
-    features[0] = np.abs(field[player_x + 1, player_y]) - 0.5 + int((player_x + 1, player_y) in bomb_pos)
-    features[1] = np.abs(field[player_x - 1, player_y]) - 0.5 + int((player_x - 1, player_y) in bomb_pos)
-    features[2] = np.abs(field[player_x, player_y + 1]) - 0.5 + int((player_x, player_y + 1) in bomb_pos)
-    features[3] = np.abs(field[player_x, player_y - 1]) - 0.5 + int((player_x, player_y - 1) in bomb_pos)
+    features[0] = (
+        np.abs(field[player_x + 1, player_y])
+        - 0.5
+        + int((player_x + 1, player_y) in bomb_pos)
+    )
+    features[1] = (
+        np.abs(field[player_x - 1, player_y])
+        - 0.5
+        + int((player_x - 1, player_y) in bomb_pos)
+    )
+    features[2] = (
+        np.abs(field[player_x, player_y + 1])
+        - 0.5
+        + int((player_x, player_y + 1) in bomb_pos)
+    )
+    features[3] = (
+        np.abs(field[player_x, player_y - 1])
+        - 0.5
+        + int((player_x, player_y - 1) in bomb_pos)
+    )
 
     features[4] = int(can_escape) - 0.5
     features[5] = int(escape_path[0][0] == 1) - 0.5
@@ -264,33 +291,43 @@ def state_to_features(self, game_state: dict) -> np.array:
     return np.concatenate([features, reduced_map]).reshape((1, FEATURE_SIZE))
 
 
-def is_path_free(path, fields, position_x, position_y, bomb_pos, check_blast=False, blast_coord=None):
+def is_path_free(
+    path, fields, position_x, position_y, bomb_pos, check_blast=False, blast_coord=None
+):
     if check_blast:
         if (position_x + path[-1][0], position_y + path[-1][1]) in blast_coord:
             return False
     for x, y in path:
-        if fields[position_x + x, position_y + y] == 0 and [position_x + x, position_y + y] not in bomb_pos:
+        if (
+            fields[position_x + x, position_y + y] == 0
+            and [position_x + x, position_y + y] not in bomb_pos
+        ):
             continue
         else:
             return False
     return True
 
 
-def check_all_paths_for_route(route, fields, position_x, position_y, bomb_pos, check_blast=False, blast_coord=None):
+def check_all_paths_for_route(
+    route, fields, position_x, position_y, bomb_pos, check_blast=False, blast_coord=None
+):
     first_neg_route = np.copy(route)
-    first_neg_route[:, 0] = - first_neg_route[:, 0]
-    logic_array = np.array([
-        # Equal sign routes
-        is_path_free(route, fields, position_x, position_y, bomb_pos, check_blast, blast_coord),
-        is_path_free(-route, fields, position_x, position_y, bomb_pos, check_blast, blast_coord),
-        is_path_free(route[:, ::-1], fields, position_x, position_y, bomb_pos, check_blast, blast_coord),
-        is_path_free(-route[:, ::-1], fields, position_x, position_y, bomb_pos, check_blast, blast_coord),
-        # Partial Negative Routes:
-        is_path_free(first_neg_route, fields, position_x, position_y, bomb_pos, check_blast, blast_coord),
-        is_path_free(-first_neg_route, fields, position_x, position_y, bomb_pos, check_blast, blast_coord),
-        is_path_free(first_neg_route[:, ::-1], fields, position_x, position_y, bomb_pos, check_blast, blast_coord),
-        is_path_free(-first_neg_route[:, ::-1], fields, position_x, position_y, bomb_pos, check_blast, blast_coord),
-    ])
+    first_neg_route[:, 0] = -first_neg_route[:, 0]
+    args = (fields, position_x, position_y, bomb_pos, check_blast, blast_coord)
+    logic_array = np.array(
+        [
+            # Equal sign routes
+            is_path_free(route, *args),
+            is_path_free(-route, *args),
+            is_path_free(route[:, ::-1], *args),
+            is_path_free(-route[:, ::-1], *args),
+            # Partial Negative Routes:
+            is_path_free(first_neg_route, *args),
+            is_path_free(-first_neg_route, *args),
+            is_path_free(first_neg_route[:, ::-1], *args),
+            is_path_free(-first_neg_route[:, ::-1], *args),
+        ]
+    )
     if check_blast:
         return logic_array
 
@@ -308,7 +345,7 @@ def bomb_destroys_crate(position_x, position_y, field):
 def get_escape_from_path_array(route_int, route):
     route = np.array(route)
     first_neg_route = np.copy(route)
-    first_neg_route[:, 0] = - first_neg_route[:, 0]
+    first_neg_route[:, 0] = -first_neg_route[:, 0]
     if route_int == 0:
         return route
     elif route_int == 1:
@@ -349,8 +386,10 @@ def coin_degree(position_x, position_y, coins):
     closest_coin = coins[closest_coin_ind]
 
     # angle in radians
-    radians = math.atan2(my_position[1] - closest_coin[1],
-                         my_position[0] - closest_coin[0]) + np.pi
+    radians = (
+        math.atan2(my_position[1] - closest_coin[1], my_position[0] - closest_coin[0])
+        + np.pi
+    )
 
     # Only consider 8 directions in which coin lies
     coin_degree = np.degrees(radians) // 45

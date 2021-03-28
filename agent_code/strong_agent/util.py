@@ -66,8 +66,8 @@ def view_port_state(game_state: dict) -> np.ndarray:
             for (bomb_x, bomb_y), timer in game_state["bombs"]:
                 if bomb_x == x and bomb_y == y:
                     features[field_index + 5] = (
-                            (settings.BOMB_TIMER - timer) / settings.BOMB_TIMER
-                    )
+                        settings.BOMB_TIMER - timer
+                    ) / settings.BOMB_TIMER
                     break
             features[field_index + 6] = int(opponent_map[x, y]) - 0.5
     assert np.all(~np.isnan(features))
