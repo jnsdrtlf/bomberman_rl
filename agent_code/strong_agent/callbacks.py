@@ -12,11 +12,11 @@ from .util import view_port_state  # noqa
 ACTIONS = ["UP", "RIGHT", "DOWN", "LEFT", "WAIT", "BOMB"]
 
 # Hyperparameters
-EPSILON_MIN = 0.1
+EPSILON_MIN = 0.01
 EPSILON_MAX = 0.5
-EPSILON_DECAY = 1e-3
-ALPHA = 0.2  # Q-learning Learning rate
-GAMMA = 0.3  # Q-learning Discount factor
+EPSILON_DECAY = 1e-4
+ALPHA = 0.1  # Q-learning Learning rate
+GAMMA = 0.6  # Q-learning Discount factor
 # Probabilities for epsilon greedy
 MAX_BOMB_PROB = 0.4
 WAIT_PROB = 0.1
